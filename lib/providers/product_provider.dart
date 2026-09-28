@@ -57,4 +57,14 @@ class ProductProvider with ChangeNotifier {
     await _repository.insertProduct(product);
     await fetchData(); // Refresh data
   }
+
+  Future<void> updateProduct(ProductModel product) async {
+    await _repository.updateProduct(product);
+    await fetchData(); // Refresh data
+  }
+
+  Future<void> deleteProduct(int id) async {
+    await _repository.deleteProduct(id);
+    await fetchData(); // Refresh data
+  }
 }

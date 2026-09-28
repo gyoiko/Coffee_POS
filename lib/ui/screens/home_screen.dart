@@ -79,6 +79,105 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  void _showEditProductDialog(BuildContext context, ProductModel product) {
+    final nameController = TextEditingController(text: product.name);
+    final priceController = TextEditingController(text: product.price.toString());
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Edit Produk'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Nama Produk'),
+              ),
+              TextField(
+                controller: priceController,
+                decoration: const InputDecoration(labelText: 'Harga (Rp)'),
+                keyboardType: TextInputType.number,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final name = nameController.text.trim();
+                final price = int.tryParse(priceController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+
+                if (name.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nama produk tidak boleh kosong')));
+                  return;
+                }
+                if (price <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Harga produk tidak valid')));
+                  return;
+                }
+
+                try {
+                  final updatedProduct = ProductModel(
+                    id: product.id,
+                    categoryId: product.categoryId,
+                    name: name,
+                    price: price,
+                  );
+                  await context.read<ProductProvider>().updateProduct(updatedProduct);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Produk berhasil diupdate')));
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal: $e')));
+                  }
+                }
+              },
+              child: const Text('Simpan'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeleteConfirmationDialog(BuildContext context, ProductModel product) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Hapus Produk'),
+          content: Text('Apakah Anda yakin ingin menghapus produk "${product.name}"?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () async {
+                if (product.id != null) {
+                  await context.read<ProductProvider>().deleteProduct(product.id!);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Produk berhasil dihapus')));
+                  }
+                }
+              },
+              child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currencyFormat = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
@@ -175,15 +274,32 @@ class HomeScreen extends StatelessWidget {
                     currencyFormat.format(product.price),
                     style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.w600),
                   ),
-                  trailing: IconButton(
-                    style: IconButton.styleFrom(
-                      backgroundColor: const Color(0xFF1B5E20), // Hijau Tua
-                      foregroundColor: Colors.white,
-                    ),
-                    icon: const Icon(Icons.add),
-                    onPressed: () {
-                      context.read<CartProvider>().addToCart(product);
-                    },
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.orange),
+                        onPressed: () {
+                          _showEditProductDialog(context, product);
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () {
+                          _showDeleteConfirmationDialog(context, product);
+                        },
+                      ),
+                      IconButton(
+                        style: IconButton.styleFrom(
+                          backgroundColor: const Color(0xFF1B5E20), // Hijau Tua
+                          foregroundColor: Colors.white,
+                        ),
+                        icon: const Icon(Icons.add),
+                        onPressed: () {
+                          context.read<CartProvider>().addToCart(product);
+                        },
+                      ),
+                    ],
                   ),
                 ),
               );

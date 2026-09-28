@@ -20,6 +20,40 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     super.dispose();
   }
 
+  void _showEditNoteDialog(BuildContext context, int index, String? currentNotes) {
+    final notesController = TextEditingController(text: currentNotes);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Edit Catatan'),
+          content: TextField(
+            controller: notesController,
+            decoration: const InputDecoration(
+              labelText: 'Catatan (opsional)',
+              hintText: 'Misal: Gula sedikit, tanpa es',
+            ),
+            maxLines: 2,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                context.read<CartProvider>().updateNotes(index, notesController.text);
+                Navigator.pop(context);
+              },
+              child: const Text('Simpan'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currencyFormat = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
@@ -53,8 +87,38 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       final item = cart.items[index];
                       return ListTile(
                         title: Text(item.product.name),
-                        subtitle: Text('${item.qty} x ${currencyFormat.format(item.product.price)}'),
-                        trailing: Text(currencyFormat.format(item.subtotal), style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${currencyFormat.format(item.product.price)}  |  Sub: ${currencyFormat.format(item.subtotal)}'),
+                            if (item.notes != null && item.notes!.isNotEmpty)
+                              Text('Catatan: ${item.notes}', style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit_note, color: Colors.orange),
+                              onPressed: () {
+                                _showEditNoteDialog(context, index, item.notes);
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+                              onPressed: () => context.read<CartProvider>().decrementQty(index),
+                            ),
+                            Text('${item.qty}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            IconButton(
+                              icon: const Icon(Icons.add_circle_outline, color: Colors.green),
+                              onPressed: () => context.read<CartProvider>().incrementQty(index),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.grey),
+                              onPressed: () => context.read<CartProvider>().removeItem(index),
+                            ),
+                          ],
+                        ),
                       );
                     },
                   ),
