@@ -4,6 +4,7 @@ import 'providers/cart_provider.dart';
 import 'providers/transaction_provider.dart';
 import 'providers/report_provider.dart';
 import 'providers/product_provider.dart';
+import 'providers/printer_provider.dart';
 import 'ui/screens/home_screen.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +22,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TransactionProvider()),
         ChangeNotifierProvider(create: (_) => ReportProvider()),
         ChangeNotifierProvider(create: (_) => ProductProvider()),
+        ChangeNotifierProvider(create: (_) => PrinterProvider()),
       ],
       child: MaterialApp(
         title: 'RANS Coffee POS',

@@ -5,6 +5,7 @@ import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../utils/printer_helper.dart';
+import '../../providers/printer_provider.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -220,10 +221,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               transaction.resetPayment();
               
               if (context.mounted) {
-                // Check printer connection first
-                bool? isPrinterConnected = await BlueThermalPrinter.instance.isConnected;
+                // Check printer connection from PrinterProvider
+                final printerProvider = context.read<PrinterProvider>();
+                bool isPrinterConnected = printerProvider.isConnected;
                 
-                if (isPrinterConnected == true) {
+                if (isPrinterConnected) {
                   // Show Print Dialog
                   showDialog(
                     context: context,

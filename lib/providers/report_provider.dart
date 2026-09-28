@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:excel/excel.dart';
 import '../data/models/transaction_model.dart';
 import '../data/repositories/transaction_repository.dart';
 
@@ -68,50 +69,56 @@ class ReportProvider with ChangeNotifier {
     }
   }
 
-  Future<String?> exportToCSV() async {
+  Future<String?> exportToExcel() async {
     try {
-      List<List<dynamic>> rows = [];
-      
+      var excel = Excel.createExcel();
+      String sheetName = 'Laporan';
+      excel.rename('Sheet1', sheetName);
+      Sheet sheetObject = excel[sheetName];
+      excel.setDefaultSheet(sheetName);
+
       // Header
-      rows.add([
-        'Kode Transaksi',
-        'Tanggal',
-        'Metode Pembayaran',
-        'Produk',
-        'Harga',
-        'Qty',
-        'Subtotal',
-        'Total Transaksi'
+      sheetObject.appendRow([
+        TextCellValue('Kode Transaksi'),
+        TextCellValue('Tanggal'),
+        TextCellValue('Metode Pembayaran'),
+        TextCellValue('Produk'),
+        TextCellValue('Harga'),
+        TextCellValue('Qty'),
+        TextCellValue('Subtotal'),
+        TextCellValue('Total Transaksi')
       ]);
 
+      // Data
       for (var tx in _transactions) {
         final txDate = DateFormat('yyyy-MM-dd HH:mm').format(tx.createdAt);
         if (tx.items != null && tx.items!.isNotEmpty) {
           for (var i = 0; i < tx.items!.length; i++) {
             var item = tx.items![i];
-            rows.add([
-              i == 0 ? tx.transactionCode : '',
-              i == 0 ? txDate : '',
-              i == 0 ? tx.paymentMethod : '',
-              item.productName,
-              item.price,
-              item.qty,
-              item.subtotal,
-              i == 0 ? tx.totalAmount : ''
+            sheetObject.appendRow([
+              TextCellValue(tx.transactionCode),
+              TextCellValue(txDate),
+              TextCellValue(tx.paymentMethod),
+              TextCellValue(item.productName),
+              IntCellValue(item.price),
+              IntCellValue(item.qty),
+              IntCellValue(item.subtotal),
+              IntCellValue(tx.totalAmount)
             ]);
           }
         } else {
-          rows.add([
-            tx.transactionCode,
-            txDate,
-            tx.paymentMethod,
-            '-', '-', '-', '-',
-            tx.totalAmount
+          sheetObject.appendRow([
+            TextCellValue(tx.transactionCode),
+            TextCellValue(txDate),
+            TextCellValue(tx.paymentMethod),
+            TextCellValue('-'),
+            TextCellValue('-'),
+            TextCellValue('-'),
+            TextCellValue('-'),
+            IntCellValue(tx.totalAmount)
           ]);
         }
       }
-
-      String csv = rows.map((row) => row.map((item) => '"${item.toString().replaceAll('"', '""')}"').join(',')).join('\n');
 
       final directory = await getApplicationDocumentsDirectory();
       final modeStr = _filterMode == ReportFilterMode.daily ? 'Harian' : 'Bulanan';
@@ -119,14 +126,18 @@ class ReportProvider with ChangeNotifier {
           ? DateFormat('yyyy-MM-dd').format(_selectedDate)
           : DateFormat('yyyy-MM').format(_selectedDate);
       
-      final path = '${directory.path}/Laporan_Penjualan_${modeStr}_$dateStr.csv';
+      final path = '${directory.path}/Laporan_Penjualan_${modeStr}_$dateStr.xlsx';
       final file = File(path);
-      await file.writeAsString(csv);
       
-      return path;
+      var fileBytes = excel.save();
+      if (fileBytes != null) {
+        await file.writeAsBytes(fileBytes);
+        return path;
+      }
+      return null;
     } catch (e) {
       if (kDebugMode) {
-        print('Error exporting CSV: $e');
+        print('Error exporting Excel: $e');
       }
       return null;
     }

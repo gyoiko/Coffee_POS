@@ -21,9 +21,9 @@ class PrinterHelper {
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
 
     // Print Header
-    bluetooth.printCustom("COFFEE POS", 3, 1);
-    bluetooth.printCustom("Jl. Raya Ngopi No. 1", 1, 1);
-    bluetooth.printCustom("Telp: 081234567890", 1, 1);
+    bluetooth.printCustom("Jo.Ko", 3, 1);
+    bluetooth.printCustom("Gg. Adil I, RT.002/RW.001, Ngilir, Kec. Kendal, Kabupaten Kendal, Jawa Tengah", 1, 1);
+    bluetooth.printCustom("Telp: +62 813-2728-2212", 1, 1);
     bluetooth.printCustom("--------------------------------", 1, 1);
 
     // Info Transaksi
@@ -56,7 +56,61 @@ class PrinterHelper {
     }
     
     bluetooth.printCustom("--------------------------------", 1, 1);
-    bluetooth.printCustom("Terima Kasih", 1, 1);
+    bluetooth.printCustom("Terima Kasih atas kunjungan Anda", 1, 1);
+    bluetooth.printCustom("Selamat Menikmati", 1, 1);
+    bluetooth.printNewLine();
+    bluetooth.printNewLine();
+    bluetooth.printNewLine(); // Paper feed
+  }
+
+  static Future<void> printReceiptFromHistory({
+    required dynamic transaction, // Menerima TransactionModel
+  }) async {
+    BlueThermalPrinter bluetooth = BlueThermalPrinter.instance;
+    bool? isConnected = await bluetooth.isConnected;
+
+    if (isConnected != true) {
+      return;
+    }
+
+    final currencyFormat = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
+    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+
+    // Print Header
+    bluetooth.printCustom("Jo.Ko", 3, 1);
+    bluetooth.printCustom("Gg. Adil I, RT.002/RW.001, Ngilir, Kec. Kendal, Kabupaten Kendal, Jawa Tengah", 1, 1);
+    bluetooth.printCustom("Telp: +62 813-2728-2212", 1, 1);
+    bluetooth.printCustom("--------------------------------", 1, 1);
+
+    // Info Transaksi
+    bluetooth.printCustom("ID: ${transaction.transactionCode}", 1, 1);
+    bluetooth.printCustom(dateFormat.format(transaction.createdAt), 1, 1);
+    bluetooth.printCustom("--------------------------------", 1, 1);
+
+    // Items
+    if (transaction.items != null) {
+      for (var item in transaction.items!) {
+        bluetooth.printCustom(item.productName, 1, 0);
+        String priceStr = "${item.qty} x ${currencyFormat.format(item.price)}";
+        String subtotalStr = currencyFormat.format(item.subtotal);
+        
+        bluetooth.printLeftRight(priceStr, subtotalStr, 1);
+        
+        if (item.notes != null && item.notes!.isNotEmpty) {
+          bluetooth.printCustom("  Catatan: ${item.notes}", 1, 0);
+        }
+      }
+    }
+    
+    bluetooth.printCustom("--------------------------------", 1, 1);
+    
+    // Totals
+    bluetooth.printLeftRight("TOTAL", currencyFormat.format(transaction.totalAmount), 1);
+    bluetooth.printLeftRight("PEMBAYARAN", transaction.paymentMethod, 1);
+    bluetooth.printCustom("(SALINAN / REPRINT)", 1, 1);
+    
+    bluetooth.printCustom("--------------------------------", 1, 1);
+    bluetooth.printCustom("Terima Kasih atas kunjungan Anda", 1, 1);
     bluetooth.printCustom("Selamat Menikmati", 1, 1);
     bluetooth.printNewLine();
     bluetooth.printNewLine();

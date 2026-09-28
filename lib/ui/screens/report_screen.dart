@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 import '../../providers/report_provider.dart';
+import '../../utils/printer_helper.dart';
+import '../../providers/printer_provider.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -44,9 +47,9 @@ class _ReportScreenState extends State<ReportScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.download),
-            tooltip: 'Export ke CSV',
+            tooltip: 'Export ke Excel',
             onPressed: () async {
-              final path = await context.read<ReportProvider>().exportToCSV();
+              final path = await context.read<ReportProvider>().exportToExcel();
               if (context.mounted) {
                 if (path != null) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Berhasil diekspor ke: $path')));
@@ -190,6 +193,25 @@ class _ReportScreenState extends State<ReportScreen> {
                                         leading: Text('${item.qty}x', style: const TextStyle(fontWeight: FontWeight.bold)),
                                         trailing: Text(currencyFormat.format(item.subtotal)),
                                       )),
+                                    const Divider(),
+                                    TextButton.icon(
+                                      onPressed: () async {
+                                        final printerProvider = context.read<PrinterProvider>();
+                                        if (printerProvider.isConnected) {
+                                          await PrinterHelper.printReceiptFromHistory(transaction: tx);
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mencetak struk...')));
+                                          }
+                                        } else {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Printer belum terhubung! Silakan ke menu Pengaturan Printer.')));
+                                          }
+                                        }
+                                      },
+                                      icon: const Icon(Icons.print, color: Color(0xFF1B5E20)),
+                                      label: const Text('Cetak Struk', style: TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.bold)),
+                                    ),
+                                    const SizedBox(height: 8),
                                   ],
                                 ),
                               );
