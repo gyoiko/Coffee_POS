@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/transaction_provider.dart';
+import '../../utils/printer_helper.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -207,11 +209,59 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             
             bool success = await context.read<TransactionProvider>().processCheckout(cart.items, cart.totalAmount);
             if (success) {
+              // Copy data before clearing
+              final printedItems = List<CartItem>.from(cart.items);
+              final printedTotal = cart.totalAmount;
+              final printedPaymentMethod = transaction.paymentMethod;
+              final printedCashAmount = transaction.cashAmount;
+              final printedChange = transaction.calculateChange(printedTotal);
+
               cart.clearCart();
               transaction.resetPayment();
+              
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaksi Berhasil disimpan!')));
-                Navigator.pop(context); // Kembali ke Home
+                // Check printer connection first
+                bool? isPrinterConnected = await BlueThermalPrinter.instance.isConnected;
+                
+                if (isPrinterConnected == true) {
+                  // Show Print Dialog
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (BuildContext ctx) {
+                      return AlertDialog(
+                        title: const Text('Cetak Struk?'),
+                        content: const Text('Transaksi berhasil disimpan. Apakah Anda ingin mencetak struk?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              Navigator.pop(context); // Kembali ke Home
+                            },
+                            child: const Text('Tidak'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () async {
+                              Navigator.pop(ctx);
+                              await PrinterHelper.printReceipt(
+                                items: printedItems,
+                                totalAmount: printedTotal,
+                                paymentMethod: printedPaymentMethod,
+                                cashAmount: printedCashAmount,
+                                change: printedChange,
+                              );
+                              if (context.mounted) Navigator.pop(context); // Kembali ke Home
+                            },
+                            child: const Text('Cetak'),
+                          ),
+                        ],
+                      );
+                    }
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Transaksi Berhasil disimpan!')));
+                  Navigator.pop(context); // Kembali ke Home
+                }
               }
             } else {
               if (context.mounted) {

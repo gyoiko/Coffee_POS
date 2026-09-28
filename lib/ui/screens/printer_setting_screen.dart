@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:blue_thermal_printer/blue_thermal_printer.dart';
+import 'package:flutter/services.dart';
 
 class PrinterSettingScreen extends StatefulWidget {
   const PrinterSettingScreen({super.key});
@@ -8,89 +10,128 @@ class PrinterSettingScreen extends StatefulWidget {
 }
 
 class _PrinterSettingScreenState extends State<PrinterSettingScreen> {
+  BlueThermalPrinter bluetooth = BlueThermalPrinter.instance;
+  List<BluetoothDevice> _devices = [];
+  BluetoothDevice? _device;
+  bool _connected = false;
   bool _isBluetoothEnabled = false;
-  bool _isScanning = false;
-  
-  // Dummy data for UI showcase
-  final List<Map<String, String>> _devices = [
-    {'name': 'InnerPrinter', 'mac': '00:11:22:33:44:55', 'status': 'Terhubung'},
-    {'name': 'MTP-II', 'mac': '66:77:88:99:AA:BB', 'status': 'Tersedia'},
-    {'name': 'POS-58', 'mac': 'CC:DD:EE:FF:00:11', 'status': 'Tersedia'},
-  ];
 
-  void _toggleBluetooth(bool value) {
-    setState(() {
-      _isBluetoothEnabled = value;
-      if (!value) {
-        _isScanning = false;
+  @override
+  void initState() {
+    super.initState();
+    _initPrinter();
+  }
+
+  Future<void> _initPrinter() async {
+    bool? isConnected = await bluetooth.isConnected;
+    List<BluetoothDevice> devices = [];
+    try {
+      devices = await bluetooth.getBondedDevices();
+      _isBluetoothEnabled = true;
+    } on PlatformException {
+      _isBluetoothEnabled = false;
+    }
+
+    bluetooth.onStateChanged().listen((state) {
+      switch (state) {
+        case BlueThermalPrinter.CONNECTED:
+          setState(() {
+            _connected = true;
+          });
+          break;
+        case BlueThermalPrinter.DISCONNECTED:
+          setState(() {
+            _connected = false;
+            _device = null;
+          });
+          break;
+        case BlueThermalPrinter.STATE_TURNING_OFF:
+        case BlueThermalPrinter.STATE_OFF:
+          setState(() {
+            _connected = false;
+            _isBluetoothEnabled = false;
+            _device = null;
+          });
+          break;
+        case BlueThermalPrinter.STATE_ON:
+          setState(() {
+            _isBluetoothEnabled = true;
+          });
+          _scanDevices();
+          break;
+        default:
+          break;
       }
+    });
+
+    if (!mounted) return;
+    setState(() {
+      _devices = devices;
+      _connected = isConnected ?? false;
     });
   }
 
-  void _scanDevices() {
-    if (!_isBluetoothEnabled) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aktifkan Bluetooth terlebih dahulu')),
-      );
-      return;
+  void _scanDevices() async {
+    setState(() {});
+    try {
+      List<BluetoothDevice> devices = await bluetooth.getBondedDevices();
+      setState(() {
+        _devices = devices;
+      });
+    } on PlatformException {
+      // Handle error
+    }
+  }
+
+  void _connectToDevice(BluetoothDevice device) async {
+    if (_connected) {
+      await bluetooth.disconnect();
     }
     
-    setState(() {
-      _isScanning = true;
-    });
-    
-    // Simulate scanning
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _isScanning = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pencarian perangkat selesai')),
-        );
-      }
-    });
-  }
-
-  void _connectToDevice(Map<String, String> device) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Mencoba menghubungkan ke ${device['name']}...')),
+      SnackBar(content: Text('Menghubungkan ke ${device.name}...')),
     );
-    // Simulate connection
-    Future.delayed(const Duration(seconds: 1), () {
+
+    try {
+      await bluetooth.connect(device);
+      setState(() {
+        _device = device;
+      });
       if (mounted) {
-        setState(() {
-          for (var d in _devices) {
-            if (d['mac'] == device['mac']) {
-              d['status'] = 'Terhubung';
-            } else {
-              if (d['status'] == 'Terhubung') d['status'] = 'Tersedia';
-            }
-          }
-        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Berhasil terhubung dengan ${device['name']}')),
+          SnackBar(content: Text('Berhasil terhubung dengan ${device.name}')),
         );
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal menghubungkan ke printer')),
+        );
+      }
+    }
+  }
+
+  void _disconnect() async {
+    await bluetooth.disconnect();
+    setState(() {
+      _device = null;
+      _connected = false;
     });
   }
 
-  void _testPrint() {
-    final connectedDevice = _devices.firstWhere(
-      (d) => d['status'] == 'Terhubung',
-      orElse: () => {},
-    );
-
-    if (connectedDevice.isEmpty) {
+  void _testPrint() async {
+    bool? isConnected = await bluetooth.isConnected;
+    if (isConnected != true) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Tidak ada printer yang terhubung')),
       );
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Mencetak struk tes...')),
-    );
+    bluetooth.printCustom("TEST PRINT Berhasil", 2, 1);
+    bluetooth.printNewLine();
+    bluetooth.printNewLine();
+    bluetooth.printNewLine(); // Feed paper
   }
 
   @override
@@ -110,17 +151,19 @@ class _PrinterSettingScreenState extends State<PrinterSettingScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Row(
-                  children: [
+                Row(
+                  children: const [
                     Icon(Icons.bluetooth, color: Color(0xFF1B5E20)),
                     SizedBox(width: 12),
-                    Text('Bluetooth Printer', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text('Status Bluetooth', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ],
                 ),
-                Switch(
-                  value: _isBluetoothEnabled,
-                  onChanged: _toggleBluetooth,
-                  activeColor: const Color(0xFF1B5E20),
+                Text(
+                  _isBluetoothEnabled ? "Aktif" : "Mati",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: _isBluetoothEnabled ? Colors.green : Colors.red,
+                  ),
                 ),
               ],
             ),
@@ -132,61 +175,59 @@ class _PrinterSettingScreenState extends State<PrinterSettingScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Perangkat Tersedia', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const Text('Perangkat Tersedia (Bonded)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
                   TextButton.icon(
-                    onPressed: _isScanning ? null : _scanDevices,
-                    icon: _isScanning 
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.refresh, color: Color(0xFF2E7D32)),
-                    label: Text(_isScanning ? 'Mencari...' : 'Cari Perangkat', style: const TextStyle(color: Color(0xFF2E7D32))),
+                    onPressed: _scanDevices,
+                    icon: const Icon(Icons.refresh, color: Color(0xFF2E7D32)),
+                    label: const Text('Refresh', style: TextStyle(color: Color(0xFF2E7D32))),
                   )
                 ],
               ),
             ),
             Expanded(
-              child: ListView.builder(
-                itemCount: _devices.length,
-                itemBuilder: (context, index) {
-                  final device = _devices[index];
-                  final isConnected = device['status'] == 'Terhubung';
-                  
-                  return Card(
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    color: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: isConnected ? const Color(0xFF1B5E20) : Colors.grey.shade300, width: isConnected ? 2 : 1),
-                    ),
-                    child: ListTile(
-                      leading: Icon(
-                        Icons.print,
-                        color: isConnected ? const Color(0xFF1B5E20) : Colors.grey,
-                      ),
-                      title: Text(device['name']!, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text('${device['mac']}\n${device['status']}'),
-                      isThreeLine: true,
-                      trailing: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isConnected ? Colors.red.shade100 : const Color(0xFFE8F5E9),
-                          foregroundColor: isConnected ? Colors.red : const Color(0xFF1B5E20),
+              child: _devices.isEmpty
+                  ? const Center(child: Text("Tidak ada perangkat bluetooth yang dipasangkan."))
+                  : ListView.builder(
+                      itemCount: _devices.length,
+                      itemBuilder: (context, index) {
+                        final device = _devices[index];
+                        final isConnected = _connected && _device?.address == device.address;
+                        
+                        return Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          color: Colors.white,
                           elevation: 0,
-                        ),
-                        onPressed: () {
-                          if (isConnected) {
-                            setState(() {
-                              device['status'] = 'Tersedia';
-                            });
-                          } else {
-                            _connectToDevice(device);
-                          }
-                        },
-                        child: Text(isConnected ? 'Putus' : 'Hubungkan'),
-                      ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: isConnected ? const Color(0xFF1B5E20) : Colors.grey.shade300, width: isConnected ? 2 : 1),
+                          ),
+                          child: ListTile(
+                            leading: Icon(
+                              Icons.print,
+                              color: isConnected ? const Color(0xFF1B5E20) : Colors.grey,
+                            ),
+                            title: Text(device.name ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: Text('${device.address}\n${isConnected ? 'Terhubung' : 'Tersedia'}'),
+                            isThreeLine: true,
+                            trailing: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isConnected ? Colors.red.shade100 : const Color(0xFFE8F5E9),
+                                foregroundColor: isConnected ? Colors.red : const Color(0xFF1B5E20),
+                                elevation: 0,
+                              ),
+                              onPressed: () {
+                                if (isConnected) {
+                                  _disconnect();
+                                } else {
+                                  _connectToDevice(device);
+                                }
+                              },
+                              child: Text(isConnected ? 'Putus' : 'Hubungkan'),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
             Container(
               padding: const EdgeInsets.all(16),
@@ -212,7 +253,7 @@ class _PrinterSettingScreenState extends State<PrinterSettingScreen> {
                   children: [
                     Icon(Icons.bluetooth_disabled, size: 64, color: Colors.grey),
                     SizedBox(height: 16),
-                    Text('Nyalakan Bluetooth untuk mencari printer thermal', style: TextStyle(color: Colors.grey)),
+                    Text('Nyalakan Bluetooth pada perangkat Anda', style: TextStyle(color: Colors.grey)),
                   ],
                 ),
               ),
