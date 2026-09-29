@@ -185,14 +185,16 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white, // Warna background putih
       extendBodyBehindAppBar: true, // Membiarkan list berada di bawah appbar (untuk efek blur)
+      extendBody: true, // Membiarkan list berada di bawah navigasi sistem
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),
         child: ClipRRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Efek blur/translucent
             child: AppBar(
-              title: const Text('Coffee POS', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1B5E20))),
-              centerTitle: true,
+              title: Image.asset('asset/logo_joko.png', height: 70, fit: BoxFit.contain),
+              centerTitle: false,
+              titleSpacing: 16,
               backgroundColor: const Color(0xB2FFFFFF), // Putih transparan
               actions: [
                 IconButton(
@@ -328,9 +330,17 @@ class SwipeableCartPanel extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    final screenHeight = MediaQuery.of(context).size.height;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    
+    // Hitung tinggi minimum agar pas dengan konten header + area aman bawah
+    // Header height: swipe indicator (20) + padding & content (~70)
+    final collapsedHeight = 100.0 + bottomPadding;
+    final minChildSize = (collapsedHeight / screenHeight).clamp(0.1, 0.5);
+
     return DraggableScrollableSheet(
-      initialChildSize: 0.13, 
-      minChildSize: 0.13,
+      initialChildSize: minChildSize, 
+      minChildSize: minChildSize,
       maxChildSize: 0.6,
       snap: true,
       builder: (BuildContext context, ScrollController scrollController) {
@@ -368,8 +378,8 @@ class SwipeableCartPanel extends StatelessWidget {
                         ),
                       ),
                       // Header Ringkasan
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      Container(
+                        padding: EdgeInsets.fromLTRB(20, 8, 20, 8 + bottomPadding), // Tambahkan bottomPadding di sini agar aman dari tombol navigasi
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [

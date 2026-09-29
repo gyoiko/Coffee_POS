@@ -33,16 +33,23 @@ dependencies:
   intl: ^0.19.0
   esc_pos_utils_plus: ^2.0.4
   sqflite_common_ffi: ^2.3.5
+  image: ^4.3.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
 
   # Konfigurasi folder assets (gambar logo, gambar QRIS statis, dsb.)
   assets:
+    - asset/
     - assets/images/
     - assets/icons/
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "asset/icon app joko.png"

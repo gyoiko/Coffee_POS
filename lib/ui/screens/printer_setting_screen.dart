@@ -157,14 +157,26 @@ class _PrinterSettingScreenState extends State<PrinterSettingScreen> {
                   ),
                 )
               ] else ...[
-                const Expanded(
+                Expanded(
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.bluetooth_disabled, size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text('Nyalakan Bluetooth pada perangkat Anda', style: TextStyle(color: Colors.grey)),
+                        const Icon(Icons.bluetooth_disabled, size: 64, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        const Text('Nyalakan Bluetooth pada perangkat Anda', style: TextStyle(color: Colors.grey)),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            BlueThermalPrinter.instance.openSettings;
+                          },
+                          icon: const Icon(Icons.settings_bluetooth),
+                          label: const Text('Buka Pengaturan Bluetooth'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1B5E20),
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
                       ],
                     ),
                   ),

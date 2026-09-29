@@ -26,7 +26,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _createDB,
       onUpgrade: (db, oldVersion, newVersion) async {
         await db.execute('DROP TABLE IF EXISTS transaction_items');
@@ -92,32 +92,6 @@ class DatabaseHelper {
     await db.insert('categories', {'name': 'Coffee'});
     await db.insert('categories', {'name': 'Non-Coffee'});
     await db.insert('categories', {'name': 'Snack'});
-    
-    // Insert Dummy Products agar UI tidak kosong
-    await db.insert('products', {
-      'category_id': 1,
-      'name': 'Kopi Susu Gula Aren',
-      'price': 18000,
-      'is_available': 1
-    });
-    await db.insert('products', {
-      'category_id': 1,
-      'name': 'Americano Ice',
-      'price': 15000,
-      'is_available': 1
-    });
-    await db.insert('products', {
-      'category_id': 2,
-      'name': 'Matcha Latte',
-      'price': 22000,
-      'is_available': 1
-    });
-    await db.insert('products', {
-      'category_id': 3,
-      'name': 'Kentang Goreng',
-      'price': 12000,
-      'is_available': 1
-    });
   }
 
   Future<void> close() async {

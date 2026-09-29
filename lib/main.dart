@@ -5,7 +5,7 @@ import 'providers/transaction_provider.dart';
 import 'providers/report_provider.dart';
 import 'providers/product_provider.dart';
 import 'providers/printer_provider.dart';
-import 'ui/screens/home_screen.dart';
+import 'ui/screens/splash_screen.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
@@ -25,13 +25,13 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PrinterProvider()),
       ],
       child: MaterialApp(
-        title: 'RANS Coffee POS',
+        title: 'jo.ko cashier',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF6F4E37)), // Coffee Brown
           useMaterial3: true,
         ),
-        home: const HomeScreen(),
+        home: const SplashScreen(),
       ),
     );
   }
