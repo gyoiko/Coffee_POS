@@ -190,6 +190,16 @@ class _ReportScreenState extends State<ReportScreen> {
                                       ...tx.items!.map((item) => ListTile(
                                         dense: true,
                                         title: Text(item.productName),
+                                        subtitle: (item.notes != null && item.notes!.isNotEmpty)
+                                            ? Text(
+                                                'Catatan: ${item.notes}',
+                                                style: const TextStyle(
+                                                  color: Colors.grey,
+                                                  fontStyle: FontStyle.italic,
+                                                  fontSize: 12,
+                                                ),
+                                              )
+                                            : null,
                                         leading: Text('${item.qty}x', style: const TextStyle(fontWeight: FontWeight.bold)),
                                         trailing: Text(currencyFormat.format(item.subtotal)),
                                       )),

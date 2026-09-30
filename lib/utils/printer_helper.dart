@@ -81,7 +81,6 @@ class PrinterHelper {
 
     // Print Header (Tanpa Jo.Ko)
     bluetooth.printCustom("Gg. Adil I, Ngilir, Kota Kendal, Jawa Tengah", 1, 1);
-    bluetooth.printCustom("Telp: 0813-2728-2212", 1, 1);
     bluetooth.printCustom("--------------------------------", 1, 1);
 
     // Info Transaksi

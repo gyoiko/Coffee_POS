@@ -55,16 +55,55 @@ class ProductProvider with ChangeNotifier {
 
   Future<void> addProduct(ProductModel product) async {
     await _repository.insertProduct(product);
-    await fetchData(); // Refresh data
+    await _refreshWithCurrentFilter();
   }
 
   Future<void> updateProduct(ProductModel product) async {
     await _repository.updateProduct(product);
-    await fetchData(); // Refresh data
+    await _refreshWithCurrentFilter();
   }
 
   Future<void> deleteProduct(int id) async {
     await _repository.deleteProduct(id);
-    await fetchData(); // Refresh data
+    await _refreshWithCurrentFilter();
+  }
+
+  /// Refresh data produk dan kategori sambil mempertahankan filter kategori yang aktif
+  Future<void> _refreshWithCurrentFilter() async {
+    _categories = await _repository.getCategories();
+    if (_selectedCategoryId == null) {
+      _products = await _repository.getAllProducts();
+    } else {
+      _products = await _repository.getProductsByCategory(_selectedCategoryId!);
+    }
+    notifyListeners();
+  }
+
+  /// Tambah kategori baru dan kembalikan ID-nya
+  Future<int> addCategory(String name) async {
+    final category = CategoryModel(name: name);
+    final newId = await _repository.insertCategory(category);
+    _categories = await _repository.getCategories();
+    notifyListeners();
+    return newId;
+  }
+
+  /// Hapus kategori berdasarkan ID
+  /// Mengembalikan jumlah produk yang masih menggunakan kategori ini (0 = aman dihapus)
+  Future<int> getCategoryProductCount(int categoryId) async {
+    return await _repository.countProductsByCategory(categoryId);
+  }
+
+  Future<void> deleteCategory(int id) async {
+    await _repository.deleteCategory(id);
+    _categories = await _repository.getCategories();
+
+    // Jika kategori yang sedang difilter dihapus, reset filter ke "Semua"
+    if (_selectedCategoryId == id) {
+      _selectedCategoryId = null;
+      _products = await _repository.getAllProducts();
+    }
+
+    notifyListeners();
   }
 }

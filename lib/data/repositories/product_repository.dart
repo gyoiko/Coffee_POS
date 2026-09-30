@@ -18,6 +18,21 @@ class ProductRepository {
     return await db.insert('categories', category.toMap());
   }
 
+  Future<int> deleteCategory(int id) async {
+    final db = await _dbHelper.database;
+    return await db.delete('categories', where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// Cek apakah kategori masih digunakan oleh produk
+  Future<int> countProductsByCategory(int categoryId) async {
+    final db = await _dbHelper.database;
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM products WHERE category_id = ?',
+      [categoryId],
+    );
+    return result.first['count'] as int;
+  }
+
   // --- PRODUCTS ---
 
   Future<List<ProductModel>> getAllProducts() async {
