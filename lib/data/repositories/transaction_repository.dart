@@ -30,19 +30,27 @@ class TransactionRepository {
     return transactionId;
   }
 
-  /// Ambil Rekapan (Total Omset, Total Transaksi, Cash vs QRIS) berdasarkan pattern (Harian/Bulanan)
+  /// Ambil Rekapan (Total Omset, Total Transaksi, Total Item Terjual, Cash vs QRIS) berdasarkan pattern (Harian/Bulanan)
   Future<Map<String, dynamic>> getSummary(String pattern) async {
     final db = await _dbHelper.database;
 
+    // Disempurnakan: Menggunakan UPPER() agar aman dari perbedaan kapitalisasi 'Cash' / 'CASH'
+    // serta menambah perhitungan total_items_sold
     final result = await db.rawQuery('''
       SELECT 
-        COUNT(id) as total_transactions,
-        COALESCE(SUM(total_amount), 0) as total_revenue,
-        COALESCE(SUM(CASE WHEN payment_method = 'CASH' THEN total_amount ELSE 0 END), 0) as total_cash,
-        COALESCE(SUM(CASE WHEN payment_method = 'QRIS' THEN total_amount ELSE 0 END), 0) as total_qris
-      FROM transactions
-      WHERE created_at LIKE ?
-    ''', [pattern]);
+        COUNT(t.id) as total_transactions,
+        COALESCE(SUM(t.total_amount), 0) as total_revenue,
+        COALESCE(SUM(CASE WHEN UPPER(t.payment_method) = 'CASH' THEN t.total_amount ELSE 0 END), 0) as total_cash,
+        COALESCE(SUM(CASE WHEN UPPER(t.payment_method) = 'QRIS' THEN t.total_amount ELSE 0 END), 0) as total_qris,
+        COALESCE((
+          SELECT SUM(ti.qty) 
+          FROM transaction_items ti 
+          JOIN transactions tr ON ti.transaction_id = tr.id 
+          WHERE tr.created_at LIKE ?
+        ), 0) as total_items_sold
+      FROM transactions t
+      WHERE t.created_at LIKE ?
+    ''', [pattern, pattern]);
 
     if (result.isNotEmpty) {
       return result.first;
@@ -50,6 +58,7 @@ class TransactionRepository {
 
     return {
       'total_transactions': 0,
+      'total_items_sold': 0,
       'total_revenue': 0,
       'total_cash': 0,
       'total_qris': 0,
@@ -57,7 +66,7 @@ class TransactionRepository {
   }
 
   /// Ambil Menu Terlaris (Top Selling) berdasarkan pattern
-  Future<List<Map<String, dynamic>>> getTopSellingProducts(String pattern, {int limit = 5}) async {
+  Future<List<Map<String, dynamic>>> getTopSellingProducts(String pattern, {int limit = 10}) async {
     final db = await _dbHelper.database;
 
     return await db.rawQuery('''
@@ -82,7 +91,7 @@ class TransactionRepository {
       'transactions',
       where: "created_at LIKE ?",
       whereArgs: [pattern],
-      orderBy: 'created_at ASC',
+      orderBy: 'created_at DESC', // Diurutkan dari transaksi terbaru
     );
 
     List<TransactionModel> result = [];

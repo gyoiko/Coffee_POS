@@ -87,7 +87,7 @@ class DatabaseHelper {
         FOREIGN KEY (transaction_id) REFERENCES transactions (id)
       )
     ''');
-    
+
     // Insert Initial Data (Kategori Default)
     await db.insert('categories', {'name': 'Coffee'});
     await db.insert('categories', {'name': 'Non-Coffee'});

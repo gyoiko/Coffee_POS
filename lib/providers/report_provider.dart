@@ -12,11 +12,12 @@ class ReportProvider with ChangeNotifier {
   final TransactionRepository _repository = TransactionRepository();
 
   bool _isLoading = false;
-  ReportFilterMode _filterMode = ReportFilterMode.monthly;
+  ReportFilterMode _filterMode = ReportFilterMode.daily;
   DateTime _selectedDate = DateTime.now();
 
   Map<String, dynamic> _summary = {
     'total_transactions': 0,
+    'total_items_sold': 0,
     'total_revenue': 0,
     'total_cash': 0,
     'total_qris': 0,
@@ -33,8 +34,10 @@ class ReportProvider with ChangeNotifier {
   List<TransactionModel> get transactions => _transactions;
 
   void setFilterMode(ReportFilterMode mode) {
-    _filterMode = mode;
-    fetchReport();
+    if (_filterMode != mode) {
+      _filterMode = mode;
+      fetchReport();
+    }
   }
 
   void setSelectedDate(DateTime date) {
@@ -72,24 +75,57 @@ class ReportProvider with ChangeNotifier {
   Future<String?> exportToExcel() async {
     try {
       var excel = Excel.createExcel();
-      String sheetName = 'Laporan';
+      String sheetName = 'Laporan Penjualan';
       excel.rename('Sheet1', sheetName);
       Sheet sheetObject = excel[sheetName];
       excel.setDefaultSheet(sheetName);
 
-      // Header
+      // Header Informasi Periode Laporan
+      final modeStr = _filterMode == ReportFilterMode.daily ? 'Harian' : 'Bulanan';
+      final dateStr = _filterMode == ReportFilterMode.daily 
+          ? DateFormat('dd MMMM yyyy').format(_selectedDate)
+          : DateFormat('MMMM yyyy').format(_selectedDate);
+
+      sheetObject.appendRow([TextCellValue('LAPORAN PENJUALAN ($modeStr)')]);
+      sheetObject.appendRow([TextCellValue('Periode: $dateStr')]);
+      sheetObject.appendRow([TextCellValue('')]);
+
+      // Ringkasan
+      sheetObject.appendRow([
+        TextCellValue('Total Transaksi'),
+        IntCellValue(_summary['total_transactions'] ?? 0),
+      ]);
+      sheetObject.appendRow([
+        TextCellValue('Total Produk Terjual'),
+        IntCellValue(_summary['total_items_sold'] ?? 0),
+      ]);
+      sheetObject.appendRow([
+        TextCellValue('Total Pendapatan'),
+        IntCellValue(_summary['total_revenue'] ?? 0),
+      ]);
+      sheetObject.appendRow([
+        TextCellValue('Total Cash'),
+        IntCellValue(_summary['total_cash'] ?? 0),
+      ]);
+      sheetObject.appendRow([
+        TextCellValue('Total QRIS'),
+        IntCellValue(_summary['total_qris'] ?? 0),
+      ]);
+      sheetObject.appendRow([TextCellValue('')]);
+
+      // Header Tabel Detail
       sheetObject.appendRow([
         TextCellValue('Kode Transaksi'),
-        TextCellValue('Tanggal'),
+        TextCellValue('Tanggal & Waktu'),
         TextCellValue('Metode Pembayaran'),
-        TextCellValue('Produk'),
-        TextCellValue('Harga'),
+        TextCellValue('Nama Produk'),
+        TextCellValue('Harga Satuan'),
         TextCellValue('Qty'),
-        TextCellValue('Subtotal'),
-        TextCellValue('Total Transaksi')
+        TextCellValue('Subtotal Item'),
+        TextCellValue('Total Bayar Transaksi')
       ]);
 
-      // Data
+      // Data Transaksi
       for (var tx in _transactions) {
         final txDate = DateFormat('yyyy-MM-dd HH:mm').format(tx.createdAt);
         if (tx.items != null && tx.items!.isNotEmpty) {
@@ -103,7 +139,7 @@ class ReportProvider with ChangeNotifier {
               IntCellValue(item.price),
               IntCellValue(item.qty),
               IntCellValue(item.subtotal),
-              IntCellValue(tx.totalAmount)
+              i == 0 ? IntCellValue(tx.totalAmount) : TextCellValue(''),
             ]);
           }
         } else {
@@ -121,12 +157,11 @@ class ReportProvider with ChangeNotifier {
       }
 
       final directory = await getApplicationDocumentsDirectory();
-      final modeStr = _filterMode == ReportFilterMode.daily ? 'Harian' : 'Bulanan';
-      final dateStr = _filterMode == ReportFilterMode.daily 
+      final fileDateStr = _filterMode == ReportFilterMode.daily 
           ? DateFormat('yyyy-MM-dd').format(_selectedDate)
           : DateFormat('yyyy-MM').format(_selectedDate);
       
-      final path = '${directory.path}/Laporan_Penjualan_${modeStr}_$dateStr.xlsx';
+      final path = '${directory.path}/Laporan_Penjualan_${modeStr}_$fileDateStr.xlsx';
       final file = File(path);
       
       var fileBytes = excel.save();
@@ -142,4 +177,4 @@ class ReportProvider with ChangeNotifier {
       return null;
     }
   }
-}
+}

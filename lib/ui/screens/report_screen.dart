@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 import '../../providers/report_provider.dart';
 import '../../utils/printer_helper.dart';
 import '../../providers/printer_provider.dart';
@@ -18,7 +17,7 @@ class _ReportScreenState extends State<ReportScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ReportProvider>().setFilterMode(ReportFilterMode.daily);
+      context.read<ReportProvider>().fetchReport();
     });
   }
 
@@ -65,7 +64,7 @@ class _ReportScreenState extends State<ReportScreen> {
         builder: (context, report, child) {
           return Column(
             children: [
-              // Filter Toggle (Harian / Bulanan)
+              // Filter Toggle (Harian / Bulanan) & Picker Tanggal
               Container(
                 color: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -101,6 +100,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     : ListView(
                         padding: const EdgeInsets.all(16),
                         children: [
+                          // Card Ringkasan Laporan Penjualan Harian/Bulanan
                           Card(
                             color: const Color(0xFF1B5E20),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -110,33 +110,73 @@ class _ReportScreenState extends State<ReportScreen> {
                                 children: [
                                   Text(
                                     report.filterMode == ReportFilterMode.daily 
-                                        ? 'Pendapatan Hari Ini (${DateFormat('dd MMM yyyy').format(report.selectedDate)})'
-                                        : 'Pendapatan Bulan Ini (${DateFormat('MMM yyyy').format(report.selectedDate)})',
-                                    style: const TextStyle(color: Colors.white70)
+                                        ? 'Laporan Penjualan Hari Ini (${DateFormat('dd MMM yyyy').format(report.selectedDate)})'
+                                        : 'Laporan Penjualan Bulan Ini (${DateFormat('MMM yyyy').format(report.selectedDate)})',
+                                    style: const TextStyle(color: Colors.white70, fontSize: 13),
                                   ),
                                   const SizedBox(height: 8),
+                                  // Total Omset / Pendapatan
                                   Text(
                                     currencyFormat.format(report.summary['total_revenue'] ?? 0),
                                     style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
                                   ),
+                                  const SizedBox(height: 6),
+                                  // Total Transaksi & Total Produk Terjual
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Text(
+                                          '${report.summary['total_transactions'] ?? 0} Transaksi',
+                                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Text(
+                                          '${report.summary['total_items_sold'] ?? 0} Item Terjual',
+                                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                   const SizedBox(height: 16),
                                   const Divider(color: Colors.white30),
                                   const SizedBox(height: 8),
+                                  // Breakdown Pembayaran Cash & QRIS
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          const Text('Cash', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                                          Text(currencyFormat.format(report.summary['total_cash'] ?? 0), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                          const Text('Cash / Tunai', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            currencyFormat.format(report.summary['total_cash'] ?? 0),
+                                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                          ),
                                         ],
                                       ),
                                       Column(
                                         crossAxisAlignment: CrossAxisAlignment.end,
                                         children: [
-                                          const Text('QRIS', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                                          Text(currencyFormat.format(report.summary['total_qris'] ?? 0), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                          const Text('QRIS / Non-Tunai', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            currencyFormat.format(report.summary['total_qris'] ?? 0),
+                                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                          ),
                                         ],
                                       ),
                                     ],
@@ -168,65 +208,73 @@ class _ReportScreenState extends State<ReportScreen> {
                           
                           const SizedBox(height: 24),
                           
-                          // Daftar Transaksi Harian (Hanya Tampil Jika Mode Harian)
-                          if (report.filterMode == ReportFilterMode.daily) ...[
-                            const Text('Riwayat Transaksi Harian', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 8),
-                            if (report.transactions.isEmpty)
-                              const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('Belum ada transaksi hari ini.'))),
-                            
-                            ...report.transactions.map((tx) {
-                              return Card(
-                                color: Colors.white,
-                                elevation: 0,
-                                margin: const EdgeInsets.only(bottom: 8),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
-                                child: ExpansionTile(
-                                  title: Text(tx.transactionCode, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  subtitle: Text(DateFormat('HH:mm').format(tx.createdAt) + ' - ' + tx.paymentMethod),
-                                  trailing: Text(currencyFormat.format(tx.totalAmount), style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1B5E20))),
-                                  children: [
-                                    if (tx.items != null)
-                                      ...tx.items!.map((item) => ListTile(
-                                        dense: true,
-                                        title: Text(item.productName),
-                                        subtitle: (item.notes != null && item.notes!.isNotEmpty)
-                                            ? Text(
-                                                'Catatan: ${item.notes}',
-                                                style: const TextStyle(
-                                                  color: Colors.grey,
-                                                  fontStyle: FontStyle.italic,
-                                                  fontSize: 12,
-                                                ),
-                                              )
-                                            : null,
-                                        leading: Text('${item.qty}x', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                        trailing: Text(currencyFormat.format(item.subtotal)),
-                                      )),
-                                    const Divider(),
-                                    TextButton.icon(
-                                      onPressed: () async {
-                                        final printerProvider = context.read<PrinterProvider>();
-                                        if (printerProvider.isConnected) {
-                                          await PrinterHelper.printReceiptFromHistory(transaction: tx);
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mencetak struk...')));
-                                          }
-                                        } else {
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Printer belum terhubung! Silakan ke menu Pengaturan Printer.')));
-                                          }
+                          // Riwayat Transaksi (Tampil di Harian maupun Bulanan)
+                          Text(
+                            report.filterMode == ReportFilterMode.daily 
+                                ? 'Riwayat Transaksi Harian' 
+                                : 'Riwayat Transaksi Bulanan', 
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          if (report.transactions.isEmpty)
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(20), 
+                                child: Text(report.filterMode == ReportFilterMode.daily ? 'Belum ada transaksi hari ini.' : 'Belum ada transaksi bulan ini.'),
+                              ),
+                            ),
+                          
+                          ...report.transactions.map((tx) {
+                            return Card(
+                              color: Colors.white,
+                              elevation: 0,
+                              margin: const EdgeInsets.only(bottom: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
+                              child: ExpansionTile(
+                                title: Text(tx.transactionCode, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                subtitle: Text('${DateFormat('dd/MM HH:mm').format(tx.createdAt)} - ${tx.paymentMethod}'),
+                                trailing: Text(currencyFormat.format(tx.totalAmount), style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1B5E20))),
+                                children: [
+                                  if (tx.items != null)
+                                    ...tx.items!.map((item) => ListTile(
+                                      dense: true,
+                                      title: Text(item.productName),
+                                      subtitle: (item.notes != null && item.notes!.isNotEmpty)
+                                          ? Text(
+                                              'Catatan: ${item.notes}',
+                                              style: const TextStyle(
+                                                color: Colors.grey,
+                                                fontStyle: FontStyle.italic,
+                                                fontSize: 12,
+                                              ),
+                                            )
+                                          : null,
+                                      leading: Text('${item.qty}x', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                      trailing: Text(currencyFormat.format(item.subtotal)),
+                                    )),
+                                  const Divider(),
+                                  TextButton.icon(
+                                    onPressed: () async {
+                                      final printerProvider = context.read<PrinterProvider>();
+                                      if (printerProvider.isConnected) {
+                                        await PrinterHelper.printReceiptFromHistory(transaction: tx);
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mencetak struk...')));
                                         }
-                                      },
-                                      icon: const Icon(Icons.print, color: Color(0xFF1B5E20)),
-                                      label: const Text('Cetak Struk', style: TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.bold)),
-                                    ),
-                                    const SizedBox(height: 8),
-                                  ],
-                                ),
-                              );
-                            }),
-                          ]
+                                      } else {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Printer belum terhubung! Silakan ke menu Pengaturan Printer.')));
+                                        }
+                                      }
+                                    },
+                                    icon: const Icon(Icons.print, color: Color(0xFF1B5E20)),
+                                    label: const Text('Cetak Struk', style: TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.bold)),
+                                  ),
+                                  const SizedBox(height: 8),
+                                ],
+                              ),
+                            );
+                          }),
                         ],
                       ),
               ),
