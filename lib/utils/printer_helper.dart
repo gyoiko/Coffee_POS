@@ -98,8 +98,7 @@ class PrinterHelper {
       if (item.notes != null && item.notes!.isNotEmpty) {
         bluetooth.printCustom("  Catatan: ${item.notes}", 1, 0);
       }
-    }
-    
+    }    
     bluetooth.printCustom("--------------------------------", 1, 1);
     
     // Totals
