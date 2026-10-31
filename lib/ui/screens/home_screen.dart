@@ -18,6 +18,7 @@ class HomeScreen extends StatelessWidget {
     final priceController = TextEditingController();
     int? selectedCategoryId;
 
+    // Salinan lokal yang bisa diperbarui saat menambah kategori baru di dialog
     var dialogCategories = List<CategoryModel>.from(
       context.read<ProductProvider>().categories,
     );
@@ -47,6 +48,7 @@ class HomeScreen extends StatelessWidget {
                       keyboardType: TextInputType.number,
                     ),
                     const SizedBox(height: 16),
+                    // Dropdown Kategori + Tombol Tambah Kategori
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
@@ -143,8 +145,9 @@ class HomeScreen extends StatelessWidget {
   void _showEditProductDialog(BuildContext context, ProductModel product) {
     final nameController = TextEditingController(text: product.name);
     final priceController = TextEditingController(text: product.price.toString());
-    int? selectedCategoryId = product.categoryId;
+    int selectedCategoryId = product.categoryId;
 
+    // Salinan lokal yang bisa diperbarui saat menambah kategori baru di dialog
     var dialogCategories = List<CategoryModel>.from(
       context.read<ProductProvider>().categories,
     );
@@ -170,6 +173,7 @@ class HomeScreen extends StatelessWidget {
                       keyboardType: TextInputType.number,
                     ),
                     const SizedBox(height: 16),
+                    // Dropdown Kategori + Tombol Tambah Kategori
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
@@ -190,7 +194,7 @@ class HomeScreen extends StatelessWidget {
                             }).toList(),
                             onChanged: (value) {
                               setDialogState(() {
-                                selectedCategoryId = value;
+                                selectedCategoryId = value!;
                               });
                             },
                           ),
@@ -235,7 +239,7 @@ class HomeScreen extends StatelessWidget {
                     try {
                       final updatedProduct = ProductModel(
                         id: product.id,
-                        categoryId: selectedCategoryId ?? product.categoryId,
+                        categoryId: selectedCategoryId,
                         name: name,
                         price: price,
                       );
@@ -291,6 +295,8 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  /// Dialog untuk menambah kategori baru
+  /// [onCategoryAdded] dipanggil ketika kategori berhasil ditambah (digunakan oleh dialog produk)
   void _showAddCategoryDialog(BuildContext context, {Function(List<CategoryModel>, int)? onCategoryAdded}) {
     final categoryNameController = TextEditingController();
 
@@ -351,6 +357,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  /// Dialog konfirmasi hapus kategori
   void _showDeleteCategoryDialog(BuildContext context, CategoryModel category) {
     showDialog(
       context: context,
@@ -412,6 +419,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  /// Mendapatkan nama kategori berdasarkan categoryId
   String _getCategoryName(List<CategoryModel> categories, int categoryId) {
     final cat = categories.where((c) => c.id == categoryId);
     return cat.isNotEmpty ? cat.first.name : '';
@@ -420,21 +428,22 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currencyFormat = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
+    final productProvider = context.watch<ProductProvider>();
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      extendBody: true,
+      backgroundColor: Colors.white, // Warna background putih
+      extendBodyBehindAppBar: true, // Membiarkan list berada di bawah appbar (untuk efek blur)
+      extendBody: true, // Membiarkan list berada di bawah navigasi sistem
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(70 + 48),
+        preferredSize: const Size.fromHeight(kToolbarHeight + 48),
         child: ClipRRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Efek blur/translucent
             child: AppBar(
-              toolbarHeight: 70,
               title: Image.asset('asset/logo_joko.png', height: 70, fit: BoxFit.contain),
               centerTitle: false,
               titleSpacing: 16,
-              backgroundColor: const Color(0xB2FFFFFF),
+              backgroundColor: const Color(0xB2FFFFFF), // Putih transparan
               actions: [
                 IconButton(
                   icon: const Icon(Icons.print, color: Color(0xFF1B5E20)),
@@ -459,98 +468,97 @@ class HomeScreen extends StatelessWidget {
                 preferredSize: const Size.fromHeight(48),
                 child: SizedBox(
                   height: 48,
-                  child: Consumer<ProductProvider>(
-                    builder: (context, productProvider, child) {
-                      return ListView(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    children: [
+                      // Chip "Semua"
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilterChip(
+                          label: const Text('Semua'),
+                          selected: productProvider.selectedCategoryId == null,
+                          selectedColor: const Color(0xFF1B5E20),
+                          checkmarkColor: Colors.white,
+                          labelStyle: TextStyle(
+                            color: productProvider.selectedCategoryId == null
+                                ? Colors.white
+                                : const Color(0xFF1B5E20),
+                            fontWeight: FontWeight.w600,
+                          ),
+                          backgroundColor: const Color(0xFFE8F5E9),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            side: BorderSide(
+                              color: productProvider.selectedCategoryId == null
+                                  ? const Color(0xFF1B5E20)
+                                  : Colors.transparent,
+                            ),
+                          ),
+                          onSelected: (_) {
+                            productProvider.selectCategory(null);
+                          },
+                        ),
+                      ),
+                      // Chip untuk setiap kategori (long-press untuk hapus)
+                      ...productProvider.categories.map((category) {
+                        final isSelected = productProvider.selectedCategoryId == category.id;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: GestureDetector(
+                            onLongPress: () {
+                              _showDeleteCategoryDialog(context, category);
+                            },
                             child: FilterChip(
-                              label: const Text('Semua'),
-                              selected: productProvider.selectedCategoryId == null,
+                              label: Text(category.name),
+                              selected: isSelected,
                               selectedColor: const Color(0xFF1B5E20),
                               checkmarkColor: Colors.white,
                               labelStyle: TextStyle(
-                                color: productProvider.selectedCategoryId == null
-                                    ? Colors.white
-                                    : const Color(0xFF1B5E20),
+                                color: isSelected ? Colors.white : const Color(0xFF1B5E20),
                                 fontWeight: FontWeight.w600,
                               ),
                               backgroundColor: const Color(0xFFE8F5E9),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
                                 side: BorderSide(
-                                  color: productProvider.selectedCategoryId == null
+                                  color: isSelected
                                       ? const Color(0xFF1B5E20)
                                       : Colors.transparent,
                                 ),
                               ),
                               onSelected: (_) {
-                                productProvider.selectCategory(null);
+                                productProvider.selectCategory(category.id);
                               },
                             ),
                           ),
-                          ...productProvider.categories.map((category) {
-                            final isSelected = productProvider.selectedCategoryId == category.id;
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: GestureDetector(
-                                onLongPress: () {
-                                  _showDeleteCategoryDialog(context, category);
-                                },
-                                child: FilterChip(
-                                  label: Text(category.name),
-                                  selected: isSelected,
-                                  selectedColor: const Color(0xFF1B5E20),
-                                  checkmarkColor: Colors.white,
-                                  labelStyle: TextStyle(
-                                    color: isSelected ? Colors.white : const Color(0xFF1B5E20),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  backgroundColor: const Color(0xFFE8F5E9),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                    side: BorderSide(
-                                      color: isSelected
-                                          ? const Color(0xFF1B5E20)
-                                          : Colors.transparent,
-                                    ),
-                                  ),
-                                  onSelected: (_) {
-                                    productProvider.selectCategory(category.id);
-                                  },
-                                ),
-                              ),
-                            );
-                          }),
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: ActionChip(
-                              avatar: const Icon(Icons.add, size: 18, color: Color(0xFF1B5E20)),
-                              label: const Text('Baru'),
-                              labelStyle: const TextStyle(
-                                color: Color(0xFF1B5E20),
-                                fontWeight: FontWeight.w600,
-                              ),
-                              backgroundColor: const Color(0xFFE8F5E9),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                                side: const BorderSide(
-                                  color: Color(0xFF1B5E20),
-                                  style: BorderStyle.solid,
-                                  width: 0.5,
-                                ),
-                              ),
-                              onPressed: () {
-                                _showAddCategoryDialog(context);
-                              },
+                        );
+                      }),
+                      // Chip "+" untuk tambah kategori baru
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ActionChip(
+                          avatar: const Icon(Icons.add, size: 18, color: Color(0xFF1B5E20)),
+                          label: const Text('Baru'),
+                          labelStyle: const TextStyle(
+                            color: Color(0xFF1B5E20),
+                            fontWeight: FontWeight.w600,
+                          ),
+                          backgroundColor: const Color(0xFFE8F5E9),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            side: const BorderSide(
+                              color: Color(0xFF1B5E20),
+                              style: BorderStyle.solid,
+                              width: 0.5,
                             ),
                           ),
-                        ],
-                      );
-                    },
+                          onPressed: () {
+                            _showAddCategoryDialog(context);
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -560,123 +568,126 @@ class HomeScreen extends StatelessWidget {
       ),
       body: Stack(
         children: [
-          Consumer<ProductProvider>(
-            builder: (context, productProvider, child) {
+          Builder(
+            builder: (context) {
               if (productProvider.isLoading) {
                 return const Center(child: CircularProgressIndicator(color: Color(0xFF1B5E20)));
               }
 
-              if (productProvider.products.isEmpty) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20),
-                    child: Text(
-                      'Belum ada produk.\nData akan muncul setelah ditambahkan ke Database.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ),
-                );
-              }
+              return Column(
+                children: [
+                  // Spacer untuk AppBar + Chips
+                  SizedBox(height: MediaQuery.of(context).padding.top + kToolbarHeight + 48),
 
-              return ListView.builder(
-                padding: const EdgeInsets.only(
-                  top: 4,
-                  bottom: 120,
-                  left: 16,
-                  right: 16,
-                ),
-                itemCount: productProvider.products.length,
-                itemBuilder: (context, index) {
-                  final product = productProvider.products[index];
-                  final categoryName = _getCategoryName(
-                    productProvider.categories,
-                    product.categoryId,
-                  );
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x0A000000),
-                          blurRadius: 10,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.all(12),
-                      leading: Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE8F5E9),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.coffee, color: Color(0xFF2E7D32)),
-                      ),
-                      title: Text(
-                        product.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            currencyFormat.format(product.price),
-                            style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.w600),
-                          ),
-                          if (categoryName.isNotEmpty)
-                            Container(
-                              margin: const EdgeInsets.only(top: 4),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE8F5E9),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
+                  // Daftar Produk
+                  Expanded(
+                    child: productProvider.products.isEmpty
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(20.0),
                               child: Text(
-                                categoryName,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFF2E7D32),
-                                  fontWeight: FontWeight.w500,
-                                ),
+                                'Belum ada produk.\nData akan muncul setelah ditambahkan ke Database.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.grey),
                               ),
                             ),
-                        ],
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.orange),
-                            onPressed: () {
-                              _showEditProductDialog(context, product);
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.only(top: 0, bottom: 120, left: 16, right: 16),
+                            itemCount: productProvider.products.length,
+                            itemBuilder: (context, index) {
+                              final product = productProvider.products[index];
+                              final categoryName = _getCategoryName(
+                                productProvider.categories,
+                                product.categoryId,
+                              );
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0x0A000000),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.all(12),
+                                  leading: Container(
+                                    width: 60,
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFE8F5E9), // Hijau sangat muda
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(Icons.coffee, color: Color(0xFF2E7D32)),
+                                  ),
+                                  title: Text(
+                                    product.name,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                  ),
+                                  subtitle: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        currencyFormat.format(product.price),
+                                        style: const TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.w600),
+                                      ),
+                                      if (categoryName.isNotEmpty)
+                                        Container(
+                                          margin: const EdgeInsets.only(top: 4),
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFE8F5E9),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            categoryName,
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Color(0xFF2E7D32),
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.edit, color: Colors.orange),
+                                        onPressed: () {
+                                          _showEditProductDialog(context, product);
+                                        },
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete, color: Colors.red),
+                                        onPressed: () {
+                                          _showDeleteConfirmationDialog(context, product);
+                                        },
+                                      ),
+                                      IconButton(
+                                        style: IconButton.styleFrom(
+                                          backgroundColor: const Color(0xFF1B5E20), // Hijau Tua
+                                          foregroundColor: Colors.white,
+                                        ),
+                                        icon: const Icon(Icons.add),
+                                        onPressed: () {
+                                          context.read<CartProvider>().addToCart(product);
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
                             },
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () {
-                              _showDeleteConfirmationDialog(context, product);
-                            },
-                          ),
-                          IconButton(
-                            style: IconButton.styleFrom(
-                              backgroundColor: const Color(0xFF1B5E20),
-                              foregroundColor: Colors.white,
-                            ),
-                            icon: const Icon(Icons.add),
-                            onPressed: () {
-                              context.read<CartProvider>().addToCart(product);
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+                  ),
+                ],
               );
             },
           ),
@@ -701,19 +712,21 @@ class SwipeableCartPanel extends StatelessWidget {
 
     final screenHeight = MediaQuery.of(context).size.height;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-
+    
+    // Hitung tinggi minimum agar pas dengan konten header + area aman bawah
+    // Header height: swipe indicator (20) + padding & content (~70)
     final collapsedHeight = 100.0 + bottomPadding;
-    final minChildSize = (collapsedHeight / screenHeight).clamp(0.12, 0.45);
+    final minChildSize = (collapsedHeight / screenHeight).clamp(0.1, 0.5);
 
     return DraggableScrollableSheet(
-      initialChildSize: minChildSize,
+      initialChildSize: minChildSize, 
       minChildSize: minChildSize,
       maxChildSize: 0.6,
       snap: true,
       builder: (BuildContext context, ScrollController scrollController) {
         return Container(
           decoration: const BoxDecoration(
-            color: Color(0xFF1B5E20),
+            color: Color(0xFF1B5E20), // Hijau Tua Solid
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             boxShadow: [
               BoxShadow(
@@ -732,6 +745,7 @@ class SwipeableCartPanel extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Indikator swipe (garis kecil)
                       Center(
                         child: Container(
                           margin: const EdgeInsets.only(top: 10, bottom: 4),
@@ -743,8 +757,9 @@ class SwipeableCartPanel extends StatelessWidget {
                           ),
                         ),
                       ),
+                      // Header Ringkasan
                       Container(
-                        padding: EdgeInsets.fromLTRB(20, 8, 20, 8 + bottomPadding),
+                        padding: EdgeInsets.fromLTRB(20, 8, 20, 8 + bottomPadding), // Tambahkan bottomPadding di sini agar aman dari tombol navigasi
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -793,7 +808,7 @@ class SwipeableCartPanel extends StatelessWidget {
                     color: Colors.white,
                     child: ListView.separated(
                       padding: const EdgeInsets.all(16),
-                      physics: const NeverScrollableScrollPhysics(),
+                      physics: const NeverScrollableScrollPhysics(), // Scroll diatur oleh CustomScrollView
                       itemCount: cart.items.length,
                       separatorBuilder: (context, index) => const Divider(height: 1),
                       itemBuilder: (context, index) {
